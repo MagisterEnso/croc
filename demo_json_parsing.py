@@ -22,7 +22,7 @@ def demo_json_parsing():
     
     # Run croc with JSON output
     process = subprocess.Popen(
-        ['./croc-json-test', '--json', 'send', 'testfile.txt'],
+        ['./dist/croc-linux-amd64', '--json', 'send', 'testfile.txt'],
         env={'CROC_SECRET': 'demo-12345'},
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -34,7 +34,7 @@ def demo_json_parsing():
     
     try:
         # Read from stderr where JSON is output
-        for line in process.stderr:
+        for line in process.stdout:
             line = line.strip()
             
             # Check if it's JSON

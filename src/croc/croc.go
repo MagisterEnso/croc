@@ -586,11 +586,13 @@ func (c *Client) sendCollectFiles(filesInfo []FileInfo) (err error) {
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "\r                                 ")
-	if c.TotalNumberFolders > 0 {
-		fmt.Fprintf(os.Stderr, "\rSending %s and %s (%s)\n", fname, folderName, utils.ByteCountDecimal(totalFilesSize))
-	} else {
-		fmt.Fprintf(os.Stderr, "\rSending %s (%s)\n", fname, utils.ByteCountDecimal(totalFilesSize))
+	if !c.Options.JSONOutput {
+		fmt.Fprintf(os.Stderr, "\r                                 ")
+		if c.TotalNumberFolders > 0 {
+			fmt.Fprintf(os.Stderr, "\rSending %s and %s (%s)\n", fname, folderName, utils.ByteCountDecimal(totalFilesSize))
+		} else {
+			fmt.Fprintf(os.Stderr, "\rSending %s (%s)\n", fname, utils.ByteCountDecimal(totalFilesSize))
+		}
 	}
 	c.emitJSON(JSONProgress{
 		Status:     "preparing",
@@ -705,7 +707,7 @@ func (c *Client) Send(filesInfo []FileInfo, emptyFoldersToTransfer []FileInfo, t
 	if c.Options.RelayPassword != models.DEFAULT_PASSPHRASE {
 		flags.WriteString("--pass " + c.Options.RelayPassword + " ")
 	}
-	
+
 	// Don't print instructions when using JSON output mode
 	if !c.Options.JSONOutput {
 		fmt.Fprintf(os.Stderr, `Code is: %[1]s
@@ -724,7 +726,7 @@ On the other computer run:
 			Relay:  c.Options.RelayAddress,
 		})
 	}
-	
+
 	if !c.Options.DisableClipboard {
 		clipboardText := c.Options.SharedSecret
 		if c.Options.ExtendedClipboard {
@@ -1401,9 +1403,13 @@ func (c *Client) processMessageFileInfo(m message.Message) (done bool, err error
 			return true, fmt.Errorf("refused files")
 		}
 	} else {
-		fmt.Fprintf(os.Stderr, "\rReceiving %s (%s) \n", fname, utils.ByteCountDecimal(totalSize))
+		if !c.Options.JSONOutput {
+			fmt.Fprintf(os.Stderr, "\rReceiving %s (%s) \n", fname, utils.ByteCountDecimal(totalSize))
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\nReceiving (<-%s)\n", c.ExternalIPConnected)
+	if !c.Options.JSONOutput {
+		fmt.Fprintf(os.Stderr, "\nReceiving (<-%s)\n", c.ExternalIPConnected)
+	}
 	c.emitJSON(JSONProgress{
 		Status:     "receiving",
 		Message:    fmt.Sprintf("Receiving %s (%s)", fname, utils.ByteCountDecimal(totalSize)),
@@ -1948,7 +1954,9 @@ func (c *Client) updateIfRecipientHasFileInfo() (err error) {
 			c.numberOfTransferredFiles++
 			newFolder, _ := filepath.Split(fileInfo.FolderRemote)
 			if newFolder != c.LastFolder && len(c.FilesToTransfer) > 0 && !c.Options.SendingText && newFolder != "./" {
-				fmt.Fprintf(os.Stderr, "\r%s\n", newFolder)
+				if !c.Options.JSONOutput {
+					fmt.Fprintf(os.Stderr, "\r%s\n", newFolder)
+				}
 			}
 			c.LastFolder = newFolder
 			break
@@ -1960,10 +1968,12 @@ func (c *Client) updateIfRecipientHasFileInfo() (err error) {
 
 func (c *Client) fmtPrintUpdate() {
 	c.finishedNum++
-	if c.TotalNumberOfContents > 1 {
-		fmt.Fprintf(os.Stderr, " %d/%d\n", c.finishedNum, c.TotalNumberOfContents)
-	} else {
-		fmt.Fprintf(os.Stderr, "\n")
+	if !c.Options.JSONOutput {
+		if c.TotalNumberOfContents > 1 {
+			fmt.Fprintf(os.Stderr, " %d/%d\n", c.finishedNum, c.TotalNumberOfContents)
+		} else {
+			fmt.Fprintf(os.Stderr, "\n")
+		}
 	}
 }
 
@@ -1982,7 +1992,9 @@ func (c *Client) updateState() (err error) {
 		log.Debug("start sending data!")
 
 		if !c.firstSend {
-			fmt.Fprintf(os.Stderr, "\nSending (->%s)\n", c.ExternalIPConnected)
+			if !c.Options.JSONOutput {
+				fmt.Fprintf(os.Stderr, "\nSending (->%s)\n", c.ExternalIPConnected)
+			}
 			c.emitJSON(JSONProgress{
 				Status:   "transferring",
 				Message:  "Starting data transfer",
