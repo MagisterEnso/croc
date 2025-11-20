@@ -570,8 +570,10 @@ func (c *Client) sendCollectFiles(filesInfo []FileInfo) (err error) {
 			return
 		}
 		log.Debugf("file %d info: %+v", i, c.FilesToTransfer[i])
-		fmt.Fprintf(os.Stderr, "\r                                 ")
-		fmt.Fprintf(os.Stderr, "\rSending %d files (%s)", i, utils.ByteCountDecimal(totalFilesSize))
+		if !c.Options.JSONOutput {
+			fmt.Fprintf(os.Stderr, "\r                                 ")
+			fmt.Fprintf(os.Stderr, "\rSending %d files (%s)", i, utils.ByteCountDecimal(totalFilesSize))
+		}
 	}
 	log.Debugf("longestFilename: %+v", c.longestFilename)
 	fname := fmt.Sprintf("%d files", len(c.FilesToTransfer))
@@ -1299,7 +1301,7 @@ func (c *Client) createEmptyFolder(i int) (err error) {
 		progressbar.OptionShowBytes(true),
 		progressbar.OptionShowCount(),
 		progressbar.OptionSetWriter(os.Stderr),
-		progressbar.OptionSetVisibility(!c.Options.SendingText),
+		progressbar.OptionSetVisibility(!c.Options.SendingText && !c.Options.JSONOutput),
 	)
 	c.bar.Finish()
 	return
@@ -1872,7 +1874,7 @@ func (c *Client) createEmptyFileAndFinish(fileInfo FileInfo, i int) (err error) 
 		progressbar.OptionShowBytes(true),
 		progressbar.OptionShowCount(),
 		progressbar.OptionSetWriter(os.Stderr),
-		progressbar.OptionSetVisibility(!c.Options.SendingText),
+		progressbar.OptionSetVisibility(!c.Options.SendingText && !c.Options.JSONOutput),
 	)
 	c.bar.Finish()
 	return
@@ -2071,7 +2073,7 @@ func (c *Client) setBar() {
 		progressbar.OptionShowCount(),
 		progressbar.OptionSetWriter(os.Stderr),
 		progressbar.OptionThrottle(100*time.Millisecond),
-		progressbar.OptionSetVisibility(!c.Options.SendingText),
+		progressbar.OptionSetVisibility(!c.Options.SendingText && !c.Options.JSONOutput),
 	)
 	byteToDo := int64(len(c.CurrentFileChunks) * models.TCP_BUFFER_SIZE / 2)
 	if byteToDo > 0 {
