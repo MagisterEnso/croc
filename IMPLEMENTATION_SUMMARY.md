@@ -94,12 +94,12 @@ import json
 process = subprocess.Popen(
     ['croc', '--json', 'send', 'file.txt'],
     env={'CROC_SECRET': 'my-code'},
-    stderr=subprocess.PIPE,
+    stdout=subprocess.PIPE,
     text=True,
     bufsize=1
 )
 
-for line in process.stderr:
+for line in process.stdout:
     if line.strip().startswith('{'):
         event = json.loads(line)
         
@@ -151,7 +151,7 @@ python test_json_output.py send testfile.txt
 
 ## Notes
 
-- JSON events are output to **stderr**
+- JSON events are output to **stdout** (or stderr when `--stdout` is used for file output)
 - Progress updates occur **periodically** (every 50-100 chunks), not for every chunk
 - For small files there may be only a few progress updates
 - `--json` can be combined with all other flags

@@ -2,7 +2,9 @@
 
 ## Overview
 
-The `--json` flag enables machine-readable JSON output on stderr. Perfect for integration with other programs (e.g., Python, Node.js, etc.).
+The `--json` flag enables machine-readable JSON output on stdout. Perfect for integration with other programs (e.g., Python, Node.js, etc.).
+
+**Note:** When using `--stdout` to redirect file output, JSON will be sent to stderr instead to avoid conflicts.
 
 ## Usage
 
@@ -16,7 +18,7 @@ CROC_SECRET=code-phrase croc --json
 
 ## JSON Format
 
-All progress updates are output as individual JSON objects on stderr, one object per line.
+All progress updates are output as individual JSON objects on stdout (one object per line), unless `--stdout` is used for file output, in which case JSON goes to stderr.
 
 ### Status Types
 
@@ -96,12 +98,12 @@ import json
 def send_file_with_progress(filename):
     process = subprocess.Popen(
         ['croc', '--json', 'send', filename],
-        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
         text=True,
         bufsize=1
     )
     
-    for line in process.stderr:
+    for line in process.stdout:
         try:
             data = json.loads(line.strip())
             
@@ -148,12 +150,12 @@ class CrocTransferGUI:
         def monitor():
             process = subprocess.Popen(
                 ['croc', '--json', 'send', filename],
-                stderr=subprocess.PIPE,
+                stdout=subprocess.PIPE,
                 text=True,
                 bufsize=1
             )
             
-            for line in process.stderr:
+            for line in process.stdout:
                 try:
                     data = json.loads(line.strip())
                     
@@ -193,7 +195,7 @@ python test_json_output.py <code-phrase>
 
 ## Notes
 
-1. **stderr vs stdout**: JSON output goes to stderr to keep stdout available for `--stdout`
+1. **stdout vs stderr**: JSON output goes to stdout by default. If `--stdout` is used to redirect file content, JSON will use stderr instead to avoid conflicts
 2. **Line-based**: Each JSON object is a complete line
 3. **Mixed with normal output**: When `--json` is active, `--quiet` should NOT be used as some status messages may be missing
 4. **Error handling**: Always check both `status: "error"` and the exit code

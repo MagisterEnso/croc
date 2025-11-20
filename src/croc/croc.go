@@ -209,12 +209,18 @@ type JSONProgress struct {
 	Error         string  `json:"error,omitempty"`
 }
 
-// emitJSON outputs JSON progress to stderr
+// emitJSON outputs JSON progress
+// Uses stdout by default, or stderr if --stdout flag is active (to avoid conflicts)
 func (c *Client) emitJSON(jp JSONProgress) {
 	if c.Options.JSONOutput {
 		data, err := json.Marshal(jp)
 		if err == nil {
-			fmt.Fprintf(os.Stderr, "%s\n", string(data))
+			// Use stderr only when --stdout is active to avoid mixing file data with JSON
+			output := os.Stdout
+			if c.Options.Stdout {
+				output = os.Stderr
+			}
+			fmt.Fprintf(output, "%s\n", string(data))
 		}
 	}
 }
