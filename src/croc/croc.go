@@ -705,7 +705,10 @@ func (c *Client) Send(filesInfo []FileInfo, emptyFoldersToTransfer []FileInfo, t
 	if c.Options.RelayPassword != models.DEFAULT_PASSPHRASE {
 		flags.WriteString("--pass " + c.Options.RelayPassword + " ")
 	}
-	fmt.Fprintf(os.Stderr, `Code is: %[1]s
+	
+	// Don't print instructions when using JSON output mode
+	if !c.Options.JSONOutput {
+		fmt.Fprintf(os.Stderr, `Code is: %[1]s
 
 On the other computer run:
 (For Windows)
@@ -713,6 +716,15 @@ On the other computer run:
 (For Linux/macOS)
     CROC_SECRET=%[1]q croc %[2]s
 `, c.Options.SharedSecret, flags.String())
+	} else {
+		// In JSON mode, emit a JSON event with the code
+		c.emitJSON(JSONProgress{
+			Status: "ready",
+			Code:   c.Options.SharedSecret,
+			Relay:  c.Options.RelayAddress,
+		})
+	}
+	
 	if !c.Options.DisableClipboard {
 		clipboardText := c.Options.SharedSecret
 		if c.Options.ExtendedClipboard {
