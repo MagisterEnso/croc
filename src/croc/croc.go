@@ -60,37 +60,38 @@ func Debug(debug bool) {
 
 // Options specifies user specific options
 type Options struct {
-	IsSender         bool
-	SharedSecret     string
-	RoomName         string
-	Debug            bool
-	RelayAddress     string
-	RelayAddress6    string
-	RelayPorts       []string
-	RelayPassword    string
-	Stdout           bool
-	NoPrompt         bool
-	NoMultiplexing   bool
-	DisableLocal     bool
-	OnlyLocal        bool
-	IgnoreStdin      bool
-	Ask              bool
-	SendingText      bool
-	NoCompress       bool
-	IP               string
-	Overwrite        bool
-	Curve            string
-	HashAlgorithm    string
-	ThrottleUpload   string
-	ZipFolder        bool
-	TestFlag         bool
-	GitIgnore        bool
-	MulticastAddress string
-	ShowQrCode       bool
-	Exclude          []string
-	Quiet            bool
-	DisableClipboard bool
+	IsSender          bool
+	SharedSecret      string
+	RoomName          string
+	Debug             bool
+	RelayAddress      string
+	RelayAddress6     string
+	RelayPorts        []string
+	RelayPassword     string
+	Stdout            bool
+	NoPrompt          bool
+	NoMultiplexing    bool
+	DisableLocal      bool
+	OnlyLocal         bool
+	IgnoreStdin       bool
+	Ask               bool
+	SendingText       bool
+	NoCompress        bool
+	IP                string
+	Overwrite         bool
+	Curve             string
+	HashAlgorithm     string
+	ThrottleUpload    string
+	ZipFolder         bool
+	TestFlag          bool
+	GitIgnore         bool
+	MulticastAddress  string
+	ShowQrCode        bool
+	Exclude           []string
+	Quiet             bool
+	DisableClipboard  bool
 	ExtendedClipboard bool
+	JSONOutput        bool
 }
 
 type SimpleMessage struct {
@@ -192,6 +193,32 @@ type SenderInfo struct {
 }
 
 // New establishes a new connection for transferring files between two instances.
+// JSONProgress represents a progress update in JSON format
+type JSONProgress struct {
+	Status        string  `json:"status"`
+	Message       string  `json:"message,omitempty"`
+	BytesSent     int64   `json:"bytes_sent,omitempty"`
+	BytesTotal    int64   `json:"bytes_total,omitempty"`
+	Percent       float64 `json:"percent,omitempty"`
+	Filename      string  `json:"filename,omitempty"`
+	FileNum       int     `json:"file_num,omitempty"`
+	TotalFiles    int     `json:"total_files,omitempty"`
+	TransferSpeed string  `json:"transfer_speed,omitempty"`
+	Relay         string  `json:"relay,omitempty"`
+	Code          string  `json:"code,omitempty"`
+	Error         string  `json:"error,omitempty"`
+}
+
+// emitJSON outputs JSON progress to stderr
+func (c *Client) emitJSON(jp JSONProgress) {
+	if c.Options.JSONOutput {
+		data, err := json.Marshal(jp)
+		if err == nil {
+			fmt.Fprintf(os.Stderr, "%s\n", string(data))
+		}
+	}
+}
+
 func New(ops Options) (c *Client, err error) {
 	c = new(Client)
 	c.FilesHasFinished = make(map[int]struct{})
@@ -559,6 +586,12 @@ func (c *Client) sendCollectFiles(filesInfo []FileInfo) (err error) {
 	} else {
 		fmt.Fprintf(os.Stderr, "\rSending %s (%s)\n", fname, utils.ByteCountDecimal(totalFilesSize))
 	}
+	c.emitJSON(JSONProgress{
+		Status:     "preparing",
+		Message:    fmt.Sprintf("Sending %s (%s)", fname, utils.ByteCountDecimal(totalFilesSize)),
+		BytesTotal: totalFilesSize,
+		TotalFiles: len(c.FilesToTransfer),
+	})
 	return
 }
 
@@ -1172,6 +1205,11 @@ func (c *Client) transfer() (err error) {
 			log.Debugf("purging error: %s", err)
 		}
 		err = nil
+		c.emitJSON(JSONProgress{
+			Status:     "complete",
+			Message:    "Transfer completed successfully",
+			TotalFiles: len(c.FilesToTransfer),
+		})
 	}
 	if c.Options.IsSender && c.SuccessfulTransfer {
 		for _, file := range c.FilesToTransfer {
@@ -1215,6 +1253,12 @@ func (c *Client) transfer() (err error) {
 	if err != nil && strings.Contains(err.Error(), "unexpected end of JSON input") {
 		log.Debugf("error: %s", err.Error())
 		err = fmt.Errorf("room (secure channel) not ready, maybe peer disconnected")
+	}
+	if err != nil {
+		c.emitJSON(JSONProgress{
+			Status: "error",
+			Error:  err.Error(),
+		})
 	}
 	return
 }
@@ -1342,6 +1386,12 @@ func (c *Client) processMessageFileInfo(m message.Message) (done bool, err error
 		fmt.Fprintf(os.Stderr, "\rReceiving %s (%s) \n", fname, utils.ByteCountDecimal(totalSize))
 	}
 	fmt.Fprintf(os.Stderr, "\nReceiving (<-%s)\n", c.ExternalIPConnected)
+	c.emitJSON(JSONProgress{
+		Status:     "receiving",
+		Message:    fmt.Sprintf("Receiving %s (%s)", fname, utils.ByteCountDecimal(totalSize)),
+		BytesTotal: totalSize,
+		TotalFiles: len(c.FilesToTransfer),
+	})
 
 	for i := 0; i < len(c.EmptyFoldersToTransfer); i += 1 {
 		_, errExists := os.Stat(c.EmptyFoldersToTransfer[i].FolderRemote)
@@ -1915,6 +1965,12 @@ func (c *Client) updateState() (err error) {
 
 		if !c.firstSend {
 			fmt.Fprintf(os.Stderr, "\nSending (->%s)\n", c.ExternalIPConnected)
+			c.emitJSON(JSONProgress{
+				Status:   "transferring",
+				Message:  "Starting data transfer",
+				Filename: c.FilesToTransfer[c.FilesToTransferCurrentNum].Name,
+				FileNum:  c.FilesToTransferCurrentNum + 1,
+			})
 			c.firstSend = true
 			// if there are empty files, show them as already have been transferred now
 			for i := range c.FilesToTransfer {
@@ -2038,6 +2094,24 @@ func (c *Client) receiveData(i int) {
 		c.TotalChunksTransferred++
 		// log.Debug(len(c.CurrentFileChunks), c.TotalChunksTransferred, c.TotalSent, c.FilesToTransfer[c.FilesToTransferCurrentNum].Size)
 
+		// Emit JSON progress periodically (every 100 chunks)
+		if c.TotalChunksTransferred%100 == 0 {
+			fileSize := c.FilesToTransfer[c.FilesToTransferCurrentNum].Size
+			percent := 0.0
+			if fileSize > 0 {
+				percent = float64(c.TotalSent) / float64(fileSize) * 100.0
+			}
+			c.emitJSON(JSONProgress{
+				Status:     "transferring",
+				BytesSent:  c.TotalSent,
+				BytesTotal: fileSize,
+				Percent:    percent,
+				Filename:   c.FilesToTransfer[c.FilesToTransferCurrentNum].Name,
+				FileNum:    c.FilesToTransferCurrentNum + 1,
+				TotalFiles: len(c.FilesToTransfer),
+			})
+		}
+
 		if !c.CurrentFileIsClosed && (c.TotalChunksTransferred == len(c.CurrentFileChunks) || c.TotalSent == c.FilesToTransfer[c.FilesToTransferCurrentNum].Size) {
 			c.CurrentFileIsClosed = true
 			log.Debug("finished receiving!")
@@ -2134,6 +2208,25 @@ func (c *Client) sendData(i int) {
 					}
 					c.bar.Add(n)
 					c.TotalSent += int64(n)
+
+					// Emit JSON progress periodically (every 50 chunks for sender)
+					if int(curi)%50 == 0 {
+						fileSize := c.FilesToTransfer[c.FilesToTransferCurrentNum].Size
+						bytesSent := int64(c.bar.State().CurrentBytes)
+						percent := 0.0
+						if fileSize > 0 {
+							percent = float64(bytesSent) / float64(fileSize) * 100.0
+						}
+						c.emitJSON(JSONProgress{
+							Status:     "transferring",
+							BytesSent:  bytesSent,
+							BytesTotal: fileSize,
+							Percent:    percent,
+							Filename:   c.FilesToTransfer[c.FilesToTransferCurrentNum].Name,
+							FileNum:    c.FilesToTransferCurrentNum + 1,
+							TotalFiles: len(c.FilesToTransfer),
+						})
+					}
 					// time.Sleep(100 * time.Millisecond)
 				}
 			}
