@@ -27,3 +27,8 @@ go.work.sum
 # Croc builds
 /croc
 croc_v*
+
+# Build outputs
+dist/
+croc-*
+*.exe
