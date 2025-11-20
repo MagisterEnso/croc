@@ -1,5 +1,28 @@
 # Summary: JSON Output Feature for croc
 
+## ⚠️ Implementation Status: Incomplete / Experimental
+
+**This implementation has known issues and is not recommended for production use.**
+
+### Problems Encountered
+
+1. **Code invasiveness**: The implementation required adding `if !c.Options.JSONOutput` checks throughout the codebase, making it harder to maintain
+2. **Edge cases**: Normal operation (without `--json` flag) was broken by progressbar visibility changes
+3. **Architectural issues**: A cleaner approach would require:
+   - A separate UI abstraction layer
+   - Writer interfaces that can switch between normal and JSON modes
+   - Better separation of concerns between business logic and output formatting
+
+### Lessons Learned
+
+- Suppressing UI elements (text messages, progress bars, etc.) for a "clean" JSON mode requires touching many parts of the code
+- Without a proper abstraction layer, this type of feature becomes maintenance-heavy
+- The original codebase wasn't designed with programmatic output in mind, making retrofitting difficult
+
+**This branch is published as documentation of what was attempted and the challenges encountered.**
+
+---
+
 ## What Was Implemented
 
 A new `--json` flag that outputs machine-readable JSON events to stderr. Perfect for integrating croc into Python processes or other programs.

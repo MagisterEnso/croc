@@ -1,5 +1,18 @@
 # JSON Output Feature for croc
 
+## ⚠️ Experimental / Incomplete Implementation
+
+**Status: This implementation has known issues and is not production-ready.**
+
+This was an attempt to add JSON output for programmatic integration with croc. While the basic functionality works when `--json` is active, the implementation has proven to be more invasive than initially anticipated:
+
+- The code changes are scattered throughout the codebase with many `if !c.Options.JSONOutput` checks
+- There are edge cases where normal operation (without `--json`) may not work correctly
+- The progressbar suppression logic interferes with normal UI behavior
+- A cleaner implementation would require a more architectural approach (e.g., separate UI layer or writer abstraction)
+
+**Use at your own risk.** This branch is published primarily as documentation of what was attempted and what challenges were encountered.
+
 ## Overview
 
 The `--json` flag enables machine-readable JSON output on stdout. Perfect for integration with other programs (e.g., Python, Node.js, etc.).
