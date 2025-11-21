@@ -528,7 +528,7 @@ main() {
   local autocomplete_install_rcode
 
   croc_bin_name="croc"
-  croc_version="10.3.0"
+  croc_version="10.3.1"
   croc_dl_ext="tar.gz"
   croc_base_url="https://github.com/schollz/croc/releases/download"
   prefix="${1}"
@@ -595,6 +595,7 @@ main() {
      "armv8l" ) croc_arch="ARM";;
      "armv9l" ) croc_arch="ARM";;
        "i686" ) croc_arch="32bit";;
+    "riscv64" ) croc_arch="RISCV64";;
             * ) croc_arch="unknown";;
   esac
 
